@@ -132,6 +132,15 @@ db.createCollection("cleanupEvents", {
   validationAction: "error"
 });
 
+// 2dsphere index: required for geospatial queries ($near, $geoWithin...)
+db.cleanupEvents.createIndex({ location: "2dsphere" });
+ 
+// Two volunteers cannot share the same email
+db.volunteers.createIndex({ email: 1 }, { unique: true });
+ 
+// Speeds up filtering and sorting by date and zone
+db.cleanupEvents.createIndex({ zone: 1, date: -1 });
+
 // Fixed _id values, so that the references between the two collections
 // are the same every time the script is run.
 // Why this format:
@@ -488,9 +497,8 @@ db.cleanupEvents.insertMany([
   }
 ]);
 
-// This script first switches to the project db.
+// The next part switches to the project db.
 // Then it creates a role with CRUD privileges on the 2 collections, which the Admin user will get next.
-// Note: that was faster to do. The collection insertions will come next (before in the script, but next in time). 
 
 db = db.getSiblingDB("cleanupDB");
 
