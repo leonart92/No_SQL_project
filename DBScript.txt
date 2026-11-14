@@ -1,3 +1,137 @@
+// DBScript.txt - Group 5 - Community Cleanup Tracker (Dublin)
+
+// How to run (from a terminal):
+//   mongosh "mongodb+srv://<cluster-host>/" --username <user> --file DBScript.txt
+// or paste it block by block in mongosh.
+
+
+// use cleanupDB is shell-only, so we use getSiblingDB to select the db so the file also works with --file.
+db = db.getSiblingDB("cleanupDB");
+
+// Drop the collections so the script can be run again without duplicates
+db.cleanupEvents.drop();
+db.volunteers.drop();
+
+
+// 1st Collection: volunteers
+// The $jsonSchema validator refuses any document that does not follow
+//  the rules of the schema (DBSchema.doc).
+// Note: "number" accepts int, long and double values.
+// 2nd note: regex "^.+@.+\\..+$"
+// Symbole	Signification
+// ^	    Start of the string
+// .+	    One or more basic characters
+// @	    One "@" because it is supposed to be a mail address
+// .+	    One or more basic characters
+// \.	    One "." before the extension
+// .+	    One or more basic characters (like com or ie)
+// $	    End of the string
+
+db.createCollection("volunteers", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: [
+        "name", "email", "address", "skills", "hoursLogged",
+        "badges", "hasEquipment", "joinedAt", "eventsAttended", "lastUpdated"
+      ],
+      properties: {
+        name:  { bsonType: "string", description: "Full name of the volunteer" },
+        email: { bsonType: "string", pattern: "^.+@.+\\..+$", description: "Contact email" },
+        address: {
+          bsonType: "object",
+          required: ["street", "city", "eircode"],
+          properties: {
+            street:  { bsonType: "string" },
+            city:    { bsonType: "string" },
+            eircode: { bsonType: "string" }
+          }
+        },
+        skills: { bsonType: "array", items: { bsonType: "string" }, description: "e.g. first aid or driving" },
+        hoursLogged: { bsonType: "number", minimum: 0, description: "Total hours volunteered" },
+        badges: { bsonType: "array", items: { bsonType: "string" },
+          description: "Rewards earned, e.g. First Cleanup or 10 Hours" },
+        hasEquipment: { bsonType: "bool", description: "true if they bring their own gloves / picker" },
+        joinedAt: { bsonType: "date", description: "Date they signed up" },
+        eventsAttended: { bsonType: "array", items: { bsonType: "objectId" },
+          description: "List of _id values from the cleanupEvents collection" },
+        lastUpdated: { bsonType: "timestamp", description: "When the document was last changed" }
+      }
+    }
+  },
+  validationLevel: "strict",
+  validationAction: "error"
+});
+
+// 2nd Collection: cleanupEvents
+// Basically, same principle as the creation of the volunteers collection
+// Had to add a GeoJSON point for the location.
+
+db.createCollection("cleanupEvents", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: [
+        "name", "date", "zone", "location", "organiser", "volunteers",
+        "wasteCollected", "durationHours", "sponsored", "status", "lastUpdated"
+      ],
+      properties: {
+        name: { bsonType: "string", description: "Name of the cleanup" },
+        date: { bsonType: "date", description: "Day and time of the cleanup" },
+        zone: { bsonType: "string", description: "Dublin area, e.g. Dublin 8" },
+        location: {
+          bsonType: "object",
+          required: ["type", "coordinates"],
+          properties: {
+            type: { enum: ["Point"] },
+            coordinates: {
+              bsonType: "array",
+              minItems: 2,
+              maxItems: 2,
+              items: { bsonType: "double" }
+            }
+          },
+          description: "Exact meeting point"
+        },
+        organiser: {
+          bsonType: "object",
+          required: ["name", "email", "phone"],
+          properties: {
+            name:  { bsonType: "string" },
+            email: { bsonType: "string" },
+            phone: { bsonType: "string" }
+          },
+          description: "name, email and phone of the person running the event"
+        },
+        volunteers: { bsonType: "array", items: { bsonType: "objectId" },
+          description: "List of _id values from the volunteers collection" },
+        wasteCollected: {
+          bsonType: "array",
+          items: {
+            bsonType: "object",
+            required: ["type", "weightKg"],
+            properties: {
+              type:     { enum: ["plastic", "glass", "paper", "metal", "organic", "electronics"] },
+              weightKg: { bsonType: "number", minimum: 0 }
+            }
+          },
+          description: "One entry per waste type"
+        },
+        durationHours: { bsonType: "number", minimum: 0,
+          description: "How long the cleanup lasted" },
+        sponsored:     { bsonType: "bool",
+          description: "true if a company sponsors the event" },
+        status:        { enum: ["planned", "completed", "cancelled"],
+          description: "Planned, completed or cancelled" },
+        lastUpdated:   { bsonType: "timestamp",
+          description: "When the document was last changed" }
+      }
+    }
+  },
+  validationLevel: "strict",
+  validationAction: "error"
+});
+
 // This script first switches to the project db.
 // Then it creates a role with CRUD privileges on the 2 collections, which the Admin user will get next.
 // Note: that was faster to do. The collection insertions will come next (before in the script, but next in time). 
