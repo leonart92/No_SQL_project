@@ -132,11 +132,177 @@ db.createCollection("cleanupEvents", {
   validationAction: "error"
 });
 
+// Fixed _id values, so that the references between the two collections
+// are the same every time the script is run.
+// Why this format:
+// - "65f00000" random date, no particular signification
+// - 24 characters required
+// - Volunteers: ...a101 to ...a110 / Events: ...b201 to ...b210
+
+var v01 = ObjectId("65f00000000000000000a101");
+var v02 = ObjectId("65f00000000000000000a102");
+var v03 = ObjectId("65f00000000000000000a103");
+var v04 = ObjectId("65f00000000000000000a104");
+var v05 = ObjectId("65f00000000000000000a105");
+var v06 = ObjectId("65f00000000000000000a106");
+var v07 = ObjectId("65f00000000000000000a107");
+var v08 = ObjectId("65f00000000000000000a108");
+var v09 = ObjectId("65f00000000000000000a109");
+var v10 = ObjectId("65f00000000000000000a110");
+ 
+var e01 = ObjectId("65f00000000000000000b201");
+var e02 = ObjectId("65f00000000000000000b202");
+var e03 = ObjectId("65f00000000000000000b203");
+var e04 = ObjectId("65f00000000000000000b204");
+var e05 = ObjectId("65f00000000000000000b205");
+var e06 = ObjectId("65f00000000000000000b206");
+var e07 = ObjectId("65f00000000000000000b207");
+var e08 = ObjectId("65f00000000000000000b208");
+var e09 = ObjectId("65f00000000000000000b209");
+var e10 = ObjectId("65f00000000000000000b210");
+
+// Current time as a BSON Timestamp, used for the lastUpdated field
+var now = Timestamp({ t: Math.floor(Date.now() / 1000), i: 1 });
+
+
+db.volunteers.insertMany([
+  {
+    _id: v01,
+    name: "Gerard Dupont",
+    email: "gerard.dupont@example.com",
+    address: { street: "11 St Augustine Street", city: "Dublin", eircode: "D08 XP7F" },
+    skills: ["first aid", "driving"],
+    hoursLogged: 8.5,
+    badges: ["First Cleanup"],
+    hasEquipment: true,
+    joinedAt: ISODate("2025-03-15T00:00:00Z"),
+    eventsAttended: [e01, e03, e07],
+    lastUpdated: now
+  },
+  {
+    _id: v02,
+    name: "Barry Allen",
+    email: "barry.allen@example.com",
+    address: { street: "Rathmines Rd Lower", city: "Dublin", eircode: "D06 DA38" },
+    skills: ["photography", "organising"],
+    hoursLogged: 8.5,
+    badges: ["First Cleanup", "Team Player"],
+    hasEquipment: false,
+    joinedAt: ISODate("2025-06-02T00:00:00Z"),
+    eventsAttended: [e01, e02, e06],
+    lastUpdated: now
+  },
+  {
+    _id: v03,
+    name: "Patrick Healy",
+    email: "patrick.healy@example.com",
+    address: { street: "27 Capel Street", city: "Dublin", eircode: "D01 E2A0" },
+    skills: ["driving", "heavy lifting"],
+    hoursLogged: 6.5,
+    badges: ["First Cleanup"],
+    hasEquipment: true,
+    joinedAt: ISODate("2025-09-20T00:00:00Z"),
+    eventsAttended: [e01, e04],
+    lastUpdated: now
+  },
+  {
+    _id: v04,
+    name: "Emma Walsh",
+    email: "emmawalsh123@example.com",
+    address: { street: "8 Clontarf Road", city: "Dublin", eircode: "D03 AK50" },
+    skills: ["first aid", "languages"],
+    hoursLogged: 10.0,
+    badges: ["First Cleanup", "10 Hours"],
+    hasEquipment: true,
+    joinedAt: ISODate("2025-11-11T00:00:00Z"),
+    eventsAttended: [e02, e03, e08],
+    lastUpdated: now
+  },
+  {
+    _id: v05,
+    name: "Lucas Martin",
+    email: "lucas.martin@example.com",
+    address: { street: "7 Ranelagh Road", city: "Dublin", eircode: "D06 Y578" },
+    skills: ["gardening", "organising"],
+    hoursLogged: 9.5,
+    badges: ["First Cleanup", "Green Thumb"],
+    hasEquipment: false,
+    joinedAt: ISODate("2026-01-08T00:00:00Z"),
+    eventsAttended: [e02, e04, e07],
+    lastUpdated: now
+  },
+  {
+    _id: v06,
+    name: "Aisling Brennan",
+    email: "aisling.brennan@example.com",
+    address: { street: "78 Dominick Street Upper", city: "Dublin", eircode: "D07 PW83" },
+    skills: ["organising", "social media"],
+    hoursLogged: 8.0,
+    badges: ["First Cleanup", "Team Leader"],
+    hasEquipment: true,
+    joinedAt: ISODate("2025-04-27T00:00:00Z"),
+    eventsAttended: [e01, e05, e08],
+    lastUpdated: now
+  },
+  {
+    _id: v07,
+    name: "Tomas Gallagher",
+    email: "tomas.gallagher@example.com",
+    address: { street: "2 Haverty Road", city: "Dublin", eircode: "D03 KF64" },
+    skills: ["driving"],
+    hoursLogged: 5.5,
+    badges: ["First Cleanup"],
+    hasEquipment: false,
+    joinedAt: ISODate("2026-02-14T00:00:00Z"),
+    eventsAttended: [e03, e05],
+    lastUpdated: now
+  },
+  {
+    _id: v08,
+    name: "Marie Dubois",
+    email: "marieduboisdu75@example.com",
+    address: { street: "62 Drumcondra Road Lower", city: "Dublin", eircode: "D09 V295" },
+    skills: ["languages", "first aid"],
+    hoursLogged: 6.5,
+    badges: ["First Cleanup"],
+    hasEquipment: true,
+    joinedAt: ISODate("2026-01-25T00:00:00Z"),
+    eventsAttended: [e03, e06],
+    lastUpdated: now
+  },
+  {
+    _id: v09,
+    name: "Arjun Sharma",
+    email: "arjun.sharma@example.com",
+    address: { street: "59 Harold's Cross Road", city: "Dublin", eircode: "D6W KV61" },
+    skills: ["heavy lifting", "gardening"],
+    hoursLogged: 11.5,
+    badges: ["First Cleanup", "10 Hours", "Plastic Hero"],
+    hasEquipment: true,
+    joinedAt: ISODate("2025-08-05T00:00:00Z"),
+    eventsAttended: [e04, e06, e08],
+    lastUpdated: now
+  },
+  {
+    _id: v10,
+    name: "Alice Wang",
+    email: "alice.wang007@example.com",
+    address: { street: "7 Ballymun Road", city: "Dublin", eircode: "D09 A8P8" },
+    skills: ["photography", "social media", "languages"],
+    hoursLogged: 2.0,
+    badges: ["First Cleanup"],
+    hasEquipment: false,
+    joinedAt: ISODate("2026-03-01T00:00:00Z"),
+    eventsAttended: [e05, e07],
+    lastUpdated: now
+  }
+]);
+
 // This script first switches to the project db.
 // Then it creates a role with CRUD privileges on the 2 collections, which the Admin user will get next.
 // Note: that was faster to do. The collection insertions will come next (before in the script, but next in time). 
 
-use cleanupDB
+db = db.getSiblingDB("cleanupDB");
 
 db.createRole({
   role: "adminRole",
