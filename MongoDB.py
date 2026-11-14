@@ -1,10 +1,13 @@
 import os
+from datetime import datetime
 
+from bson.timestamp import Timestamp
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27018")
 DB_NAME = "cleanupDB"
+SEPARATOR = "-" * 70
 
 COLLECTIONS = {"1": "cleanupEvents", "2": "volunteers"}
 
@@ -29,8 +32,31 @@ def ask_option(title, options):
         print("Invalid choice, try again.")
 
 
+def format_value(value):
+    if isinstance(value, datetime):
+        return value.strftime("%Y-%m-%d %H:%M")
+    if isinstance(value, Timestamp):
+        return format_value(value.as_datetime())
+    if isinstance(value, dict):
+        return ", ".join(f"{key}: {format_value(item)}" for key, item in value.items())
+    if isinstance(value, list):
+        return " | ".join(format_value(item) for item in value) or "none"
+    return str(value)
+
+
+def print_document(document):
+    print(SEPARATOR)
+    for field, value in document.items():
+        print(f"{field:<16}{format_value(value)}")
+
+
 def display_all(collection):
-    print("Display is not available yet.")
+    count = 0
+    for document in collection.find():
+        print_document(document)
+        count += 1
+    print(SEPARATOR)
+    print(f"{count} document(s) in {collection.name}.")
 
 
 def add_document(collection):
