@@ -164,6 +164,10 @@ var e10 = ObjectId("65f00000000000000000b210");
 // Current time as a BSON Timestamp, used for the lastUpdated field
 var now = Timestamp({ t: Math.floor(Date.now() / 1000), i: 1 });
 
+// Insert the 10 volunteers
+// Rules used for the sample data:
+//  - eventsAttended only lists COMPLETED events (e01 to e08)
+//  - hoursLogged = sum of durationHours of the attended events
 
 db.volunteers.insertMany([
   {
@@ -276,7 +280,7 @@ db.volunteers.insertMany([
     email: "arjun.sharma@example.com",
     address: { street: "59 Harold's Cross Road", city: "Dublin", eircode: "D6W KV61" },
     skills: ["heavy lifting", "gardening"],
-    hoursLogged: 11.5,
+    hoursLogged: 10.5,
     badges: ["First Cleanup", "10 Hours", "Plastic Hero"],
     hasEquipment: true,
     joinedAt: ISODate("2025-08-05T00:00:00Z"),
@@ -289,11 +293,197 @@ db.volunteers.insertMany([
     email: "alice.wang007@example.com",
     address: { street: "7 Ballymun Road", city: "Dublin", eircode: "D09 A8P8" },
     skills: ["photography", "social media", "languages"],
-    hoursLogged: 2.0,
+    hoursLogged: 4.5,
     badges: ["First Cleanup"],
     hasEquipment: false,
     joinedAt: ISODate("2026-03-01T00:00:00Z"),
     eventsAttended: [e05, e07],
+    lastUpdated: now
+  }
+]);
+
+// Insert 10 cleanup events
+//  - e01 to e08: completed
+//  - e09: planned (volunteers are registered, but nobody attended yet)
+//  - e10: cancelled (no volunteers, no waste)
+
+db.cleanupEvents.insertMany([
+  {
+    _id: e01,
+    name: "Phoenix Park Litter Pick",
+    date: ISODate("2026-10-04T10:00:00Z"),
+    zone: "Dublin 8",
+    location: { type: "Point", coordinates: [-6.3298, 53.3559] },
+    organiser: { name: "Aoife Burne", email: "aoife.burne@example.ie", phone: "0871234567" },
+    volunteers: [v01, v02, v03, v06],
+    wasteCollected: [
+      { type: "plastic", weightKg: 18.5 },
+      { type: "glass",   weightKg: 7.2 },
+      { type: "paper",   weightKg: 5.4 },
+      { type: "metal",   weightKg: 2.8 }
+    ],
+    durationHours: 2.5,
+    sponsored: true,
+    status: "completed",
+    lastUpdated: now
+  },
+  {
+    _id: e02,
+    name: "Grand Canal Clean-up",
+    date: ISODate("2026-09-13T11:00:00Z"),
+    zone: "Dublin 2",
+    location: { type: "Point", coordinates: [-6.2397, 53.3394] },
+    organiser: { name: "Conor McDonald", email: "conor.mcdonald@example.ie", phone: "0852345678" },
+    volunteers: [v02, v04, v05],
+    wasteCollected: [
+      { type: "plastic", weightKg: 22.3 },
+      { type: "metal",   weightKg: 9.6 },
+      { type: "organic", weightKg: 14.1 }
+    ],
+    durationHours: 3.0,
+    sponsored: false,
+    status: "completed",
+    lastUpdated: now
+  },
+  {
+    _id: e03,
+    name: "Dollymount Beach Clean",
+    date: ISODate("2026-08-22T09:30:00Z"),
+    zone: "Dublin 3",
+    location: { type: "Point", coordinates: [-6.1537, 53.3633] },
+    organiser: { name: "Siobhan Doyle", email: "siobhan.doyle@example.ie", phone: "0863456789" },
+    volunteers: [v01, v04, v07, v08],
+    wasteCollected: [
+      { type: "plastic", weightKg: 31.7 },
+      { type: "glass",   weightKg: 12.4 },
+      { type: "metal",   weightKg: 4.8 },
+      { type: "organic", weightKg: 10.2 }
+    ],
+    durationHours: 3.5,
+    sponsored: true,
+    status: "completed",
+    lastUpdated: now
+  },
+  {
+    _id: e04,
+    name: "Liffey Quays Recycling Drive",
+    date: ISODate("2026-07-18T10:00:00Z"),
+    zone: "Dublin 1",
+    location: { type: "Point", coordinates: [-6.2603, 53.3470] },
+    organiser: { name: "Aoife Burne", email: "aoife.burne@example.ie", phone: "0871234567" },
+    volunteers: [v03, v05, v09],
+    wasteCollected: [
+      { type: "paper",       weightKg: 45.5 },
+      { type: "glass",       weightKg: 28.3 },
+      { type: "plastic",     weightKg: 19.9 },
+      { type: "metal",       weightKg: 11.2 },
+      { type: "electronics", weightKg: 8.6 }
+    ],
+    durationHours: 4.0,
+    sponsored: true,
+    status: "completed",
+    lastUpdated: now
+  },
+  {
+    _id: e05,
+    name: "Clontarf Promenade Pick-Up",
+    date: ISODate("2026-06-20T14:00:00Z"),
+    zone: "Dublin 3",
+    location: { type: "Point", coordinates: [-6.2000, 53.3630] },
+    organiser: { name: "Liam Kelly", email: "liam.kelly@example.ie", phone: "0894567890" },
+    volunteers: [v06, v07, v10],
+    wasteCollected: [
+      { type: "plastic", weightKg: 15.8 },
+      { type: "glass",   weightKg: 5.5 },
+      { type: "organic", weightKg: 8.4 }
+    ],
+    durationHours: 2.0,
+    sponsored: false,
+    status: "completed",
+    lastUpdated: now
+  },
+  {
+    _id: e06,
+    name: "Tolka Valley Park Cleanup",
+    date: ISODate("2026-05-16T10:30:00Z"),
+    zone: "Dublin 11",
+    location: { type: "Point", coordinates: [-6.3025, 53.3790] },
+    organiser: { name: "Conor McDonald", email: "conor.mcdonald@example.ie", phone: "0852345678" },
+    volunteers: [v02, v08, v09],
+    wasteCollected: [
+      { type: "plastic", weightKg: 12.6 },
+      { type: "paper",   weightKg: 7.3 },
+      { type: "metal",   weightKg: 6.1 },
+      { type: "organic", weightKg: 21.9 }
+    ],
+    durationHours: 3.0,
+    sponsored: false,
+    status: "completed",
+    lastUpdated: now
+  },
+  {
+    _id: e07,
+    name: "Herbert Park Spring Clean",
+    date: ISODate("2026-04-11T10:00:00Z"),
+    zone: "Dublin 4",
+    location: { type: "Point", coordinates: [-6.2300, 53.3260] },
+    organiser: { name: "Alfred Hitchok", email: "alfred.hitchok@example.ie", phone: "0875678901" },
+    volunteers: [v01, v05, v10],
+    wasteCollected: [
+      { type: "organic", weightKg: 26.4 },
+      { type: "plastic", weightKg: 9.7 },
+      { type: "glass",   weightKg: 4.3 }
+    ],
+    durationHours: 2.5,
+    sponsored: true,
+    status: "completed",
+    lastUpdated: now
+  },
+  {
+    _id: e08,
+    name: "St Stephen's Green Eco Day",
+    date: ISODate("2026-03-14T11:00:00Z"),
+    zone: "Dublin 2",
+    location: { type: "Point", coordinates: [-6.2589, 53.3382] },
+    organiser: { name: "Siobhan Doyle", email: "siobhan.doyle@example.ie", phone: "0863456789" },
+    volunteers: [v04, v06, v09],
+    wasteCollected: [
+      { type: "paper",       weightKg: 10.8 },
+      { type: "plastic",     weightKg: 14.2 },
+      { type: "glass",       weightKg: 6.6 },
+      { type: "electronics", weightKg: 3.5 }
+    ],
+    durationHours: 3.5,
+    sponsored: false,
+    status: "completed",
+    lastUpdated: now
+  },
+  {
+    _id: e09,
+    name: "Dodder Riverside Cleanup",
+    date: ISODate("2026-12-05T10:00:00Z"),
+    zone: "Dublin 14",
+    location: { type: "Point", coordinates: [-6.2750, 53.2950] },
+    organiser: { name: "Liam Kelly", email: "liam.kelly@example.ie", phone: "0894567890" },
+    volunteers: [v01, v03, v07],
+    wasteCollected: [],
+    durationHours: 3.5,
+    sponsored: true,
+    status: "planned",
+    lastUpdated: now
+  },
+  {
+    _id: e10,
+    name: "Ballymun Green Spaces Day",
+    date: ISODate("2026-11-01T10:00:00Z"),
+    zone: "Dublin 11",
+    location: { type: "Point", coordinates: [-6.2700, 53.3910] },
+    organiser: { name: "Alfred Hitchok", email: "alfred.hitchok@example.ie", phone: "0875678901" },
+    volunteers: [],
+    wasteCollected: [],
+    durationHours: 0,
+    sponsored: false,
+    status: "cancelled",
     lastUpdated: now
   }
 ]);
