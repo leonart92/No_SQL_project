@@ -1,0 +1,22 @@
+// This script first switches to the project db.
+// Then it creates a role with CRUD privileges on the 2 collections, which the Admin user will get next.
+// Note: that was faster to do. The collection insertions will come next (before in the script, but next in time). 
+
+use cleanupDB
+
+db.createRole({
+  role: "adminRole",
+  privileges: [
+    { resource: { db: "cleanupDB", collection: "cleanupEvents" },
+      actions: ["find", "insert", "update", "remove"] },
+    { resource: { db: "cleanupDB", collection: "volunteers" },
+      actions: ["find", "insert", "update", "remove"] }
+  ],
+  roles: []
+})
+
+db.createUser({
+  user: "Admin",
+  pwd: "pa33word",
+  roles: [ { role: "adminRole", db: "cleanupDB" } ]
+})
