@@ -11,6 +11,8 @@ MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27018")
 DB_NAME = "cleanupDB"
 SEPARATOR = "-" * 70
 DATE_FORMATS = ("%Y-%m-%d %H:%M", "%Y-%m-%d")
+WASTE_TYPES = ["plastic", "glass", "paper", "metal", "organic", "electronics"]
+STATUSES = ["planned", "completed", "cancelled"]
 
 COLLECTIONS = {"1": "cleanupEvents", "2": "volunteers"}
 
@@ -127,8 +129,52 @@ def ask_references(label, target_collection):
         print(f"Some ids do not exist in {target_collection.name}.")
 
 
+def ask_choice(label, values):
+    while True:
+        value = input(f"{label} ({', '.join(values)}): ").strip().lower()
+        if value in values:
+            return value
+        print("Please pick one of the listed values.")
+
+
+def ask_waste_collected():
+    waste = []
+    while ask_yes_no("Add a waste entry"):
+        waste.append({
+            "type": ask_choice("Waste type", WASTE_TYPES),
+            "weightKg": ask_number("Weight in kg", minimum=0),
+        })
+    return waste
+
+
 def current_timestamp():
     return Timestamp(datetime.now(timezone.utc), 1)
+
+
+def build_cleanup_event(database):
+    return {
+        "name": ask_text("Name"),
+        "date": ask_date("Date"),
+        "zone": ask_text("Zone"),
+        "location": {
+            "type": "Point",
+            "coordinates": [
+                ask_number("Longitude", -180, 180),
+                ask_number("Latitude", -90, 90),
+            ],
+        },
+        "organiser": {
+            "name": ask_text("Organiser name"),
+            "email": ask_email("Organiser email"),
+            "phone": ask_text("Organiser phone"),
+        },
+        "volunteers": ask_references("Volunteer ids", database["volunteers"]),
+        "wasteCollected": ask_waste_collected(),
+        "durationHours": ask_number("Duration in hours", minimum=0),
+        "sponsored": ask_yes_no("Sponsored"),
+        "status": ask_choice("Status", STATUSES),
+        "lastUpdated": current_timestamp(),
+    }
 
 
 def build_volunteer(database):
@@ -150,13 +196,10 @@ def build_volunteer(database):
     }
 
 
-BUILDERS = {"volunteers": build_volunteer}
+BUILDERS = {"cleanupEvents": build_cleanup_event, "volunteers": build_volunteer}
 
 
 def add_document(collection):
-    if collection.name not in BUILDERS:
-        print("Add is not available yet for this collection.")
-        return
     document = BUILDERS[collection.name](collection.database)
     try:
         result = collection.insert_one(document)
