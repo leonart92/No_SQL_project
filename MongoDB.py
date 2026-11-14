@@ -1,13 +1,16 @@
 import os
-from datetime import datetime
+import re
+from datetime import datetime, timezone
 
+from bson import ObjectId
 from bson.timestamp import Timestamp
 from pymongo import MongoClient
-from pymongo.errors import PyMongoError
+from pymongo.errors import DuplicateKeyError, PyMongoError, WriteError
 
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27018")
 DB_NAME = "cleanupDB"
 SEPARATOR = "-" * 70
+DATE_FORMATS = ("%Y-%m-%d %H:%M", "%Y-%m-%d")
 
 COLLECTIONS = {"1": "cleanupEvents", "2": "volunteers"}
 
@@ -59,8 +62,110 @@ def display_all(collection):
     print(f"{count} document(s) in {collection.name}.")
 
 
+def ask_text(label):
+    while True:
+        value = input(f"{label}: ").strip()
+        if value:
+            return value
+        print("This field is required.")
+
+
+def ask_email(label):
+    while True:
+        value = ask_text(label)
+        if re.fullmatch(r".+@.+\..+", value):
+            return value
+        print("Please enter a valid email address.")
+
+
+def ask_number(label, minimum=float("-inf"), maximum=float("inf")):
+    while True:
+        try:
+            value = float(input(f"{label}: "))
+        except ValueError:
+            print("Please enter a number.")
+            continue
+        if minimum <= value <= maximum:
+            return value
+        print("This value is out of range.")
+
+
+def ask_yes_no(label):
+    while True:
+        answer = input(f"{label} (y/n): ").strip().lower()
+        if answer in ("y", "n"):
+            return answer == "y"
+        print("Please answer y or n.")
+
+
+def ask_date(label):
+    while True:
+        text = input(f"{label} (YYYY-MM-DD or YYYY-MM-DD HH:MM): ").strip()
+        for date_format in DATE_FORMATS:
+            try:
+                return datetime.strptime(text, date_format)
+            except ValueError:
+                continue
+        print("Please enter a valid date.")
+
+
+def ask_list(label):
+    text = input(f"{label} (comma separated, empty for none): ")
+    return [item.strip() for item in text.split(",") if item.strip()]
+
+
+def ask_references(label, target_collection):
+    while True:
+        values = ask_list(label)
+        if not all(ObjectId.is_valid(value) for value in values):
+            print("Each id must be a 24 character hexadecimal string.")
+            continue
+        ids = [ObjectId(value) for value in values]
+        found = target_collection.count_documents({"_id": {"$in": ids}})
+        if found == len(set(ids)):
+            return ids
+        print(f"Some ids do not exist in {target_collection.name}.")
+
+
+def current_timestamp():
+    return Timestamp(datetime.now(timezone.utc), 1)
+
+
+def build_volunteer(database):
+    return {
+        "name": ask_text("Full name"),
+        "email": ask_email("Email"),
+        "address": {
+            "street": ask_text("Street"),
+            "city": ask_text("City"),
+            "eircode": ask_text("Eircode"),
+        },
+        "skills": ask_list("Skills"),
+        "hoursLogged": ask_number("Hours logged", minimum=0),
+        "badges": ask_list("Badges"),
+        "hasEquipment": ask_yes_no("Has own equipment"),
+        "joinedAt": ask_date("Joined on"),
+        "eventsAttended": ask_references("Attended event ids", database["cleanupEvents"]),
+        "lastUpdated": current_timestamp(),
+    }
+
+
+BUILDERS = {"volunteers": build_volunteer}
+
+
 def add_document(collection):
-    print("Add is not available yet.")
+    if collection.name not in BUILDERS:
+        print("Add is not available yet for this collection.")
+        return
+    document = BUILDERS[collection.name](collection.database)
+    try:
+        result = collection.insert_one(document)
+    except DuplicateKeyError:
+        print("A volunteer with this email already exists.")
+    except WriteError as error:
+        print(f"The document was rejected: {error.details.get('errmsg', error)}")
+    else:
+        print(f"Document added with id {result.inserted_id}.")
 
 
 def update_document(collection):
