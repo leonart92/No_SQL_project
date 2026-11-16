@@ -16,6 +16,11 @@ STATUSES = ["planned", "completed", "cancelled"]
 
 COLLECTIONS = {"1": "cleanupEvents", "2": "volunteers"}
 
+SEARCH_FIELDS = {
+    "cleanupEvents": ["name", "zone", "status", "organiser.name", "wasteCollected.type"],
+    "volunteers": ["name", "email", "address.city", "skills", "badges"],
+}
+
 ACTION_LABELS = {
     "1": "Display all documents",
     "2": "Add a new document",
@@ -55,12 +60,17 @@ def print_document(document):
         print(f"{field:<16}{format_value(value)}")
 
 
-def display_all(collection):
+def print_documents(documents):
     count = 0
-    for document in collection.find():
+    for document in documents:
         print_document(document)
         count += 1
     print(SEPARATOR)
+    return count
+
+
+def display_all(collection):
+    count = print_documents(collection.find())
     print(f"{count} document(s) in {collection.name}.")
 
 
@@ -220,7 +230,11 @@ def delete_document(collection):
 
 
 def search_documents(collection):
-    print("Search is not available yet.")
+    keyword = ask_text("Keyword")
+    pattern = {"$regex": re.escape(keyword), "$options": "i"}
+    query = {"$or": [{field: pattern} for field in SEARCH_FIELDS[collection.name]]}
+    count = print_documents(collection.find(query))
+    print(f"{count} document(s) matching '{keyword}' in {collection.name}.")
 
 
 ACTIONS = {
