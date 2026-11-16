@@ -518,3 +518,121 @@ db.createUser({
   pwd: "pa33word",
   roles: [ { role: "adminRole", db: "cleanupDB" } ]
 })
+
+
+// 3rd Part: Queries
+
+// Query 1: completed events
+db.cleanupEvents.find({ status: "completed" });
+
+// Query 2: one volunteer looked up by email
+db.volunteers.findOne(
+  { email: "emmawalsh123@example.com" },
+  { _id: 0, name: 1, email: 1, skills: 1, hoursLogged: 1 }
+);
+
+// Query 3: sponsored events
+db.cleanupEvents.find({ sponsored: true });
+
+// Query 4: completed events, most recent first
+db.cleanupEvents.find({ status: "completed" }).sort({ date: -1 });
+
+// Query 5: the 5 volunteers who logged the most hours
+db.volunteers.find({}, { _id: 0, name: 1, hoursLogged: 1 })
+  .sort({ hoursLogged: -1 })
+  .limit(5);
+
+// Query 6: volunteers who can drive or give first aid
+db.volunteers.find({ skills: { $in: ["driving", "first aid"] } });
+
+// Query 7: volunteers who hold both badges
+db.volunteers.find({ badges: { $all: ["First Cleanup", "10 Hours"] } });
+
+// Query 8: volunteers with exactly 3 skills
+db.volunteers.find({ skills: { $size: 3 } });
+
+// Query 9: events with a single plastic entry of 20kg or more
+db.cleanupEvents.find({
+  wasteCollected: { $elemMatch: { type: "plastic", weightKg: { $gte: 20 } } }
+});
+
+// Query 10: events within 2km of Dublin city centre, closest first
+db.cleanupEvents.find({
+  location: {
+    $near: {
+      $geometry: { type: "Point", coordinates: [-6.2603, 53.3498] },
+      $maxDistance: 2000
+    }
+  }
+});
+
+// Query 11: total weight collected per waste type
+db.cleanupEvents.aggregate([
+  { $match: { status: "completed" } },
+  { $unwind: "$wasteCollected" },
+  { $group: {
+      _id: "$wasteCollected.type",
+      totalKg: { $sum: "$wasteCollected.weightKg" }
+  } },
+  { $sort: { totalKg: -1 } }
+]);
+
+// Query 12: the 5 busiest zones, with their average event duration
+db.cleanupEvents.aggregate([
+  { $group: {
+      _id: "$zone",
+      eventCount: { $sum: 1 },
+      avgDurationHours: { $avg: "$durationHours" }
+  } },
+  { $sort: { eventCount: -1 } },
+  { $limit: 5 }
+]);
+
+// Query 13: events that are not cancelled and have 3 volunteers or fewer
+db.cleanupEvents.aggregate([
+  { $project: {
+      _id: 0,
+      name: 1,
+      zone: 1,
+      status: 1,
+      volunteerCount: { $size: "$volunteers" }
+  } },
+  { $match: { status: { $ne: "cancelled" }, volunteerCount: { $lte: 3 } } },
+  { $sort: { volunteerCount: 1 } }
+]);
+
+// Query 14: the 5 volunteers who attended the most events
+db.volunteers.aggregate([
+  { $lookup: {
+      from: "cleanupEvents",
+      localField: "eventsAttended",
+      foreignField: "_id",
+      as: "attendedEvents"
+  } },
+  { $unwind: "$attendedEvents" },
+  { $group: {
+      _id: "$_id",
+      name: { $first: "$name" },
+      eventsCount: { $sum: 1 },
+      totalHours: { $sum: "$attendedEvents.durationHours" }
+  } },
+  { $sort: { eventsCount: -1, totalHours: -1 } },
+  { $limit: 5 }
+]);
+
+// Query 15: average waste per event, sponsored against the others
+db.cleanupEvents.aggregate([
+  { $match: { status: "completed" } },
+  { $unwind: "$wasteCollected" },
+  { $group: {
+      _id: { eventId: "$_id", sponsored: "$sponsored" },
+      totalWeightKg: { $sum: "$wasteCollected.weightKg" }
+  } },
+  { $group: {
+      _id: "$_id.sponsored",
+      eventCount: { $sum: 1 },
+      avgWeightPerEventKg: { $avg: "$totalWeightKg" }
+  } },
+  { $project: { _id: 0, sponsored: "$_id", eventCount: 1, avgWeightPerEventKg: 1 } },
+  { $sort: { sponsored: -1 } }
+]);
