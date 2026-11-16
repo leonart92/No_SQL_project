@@ -16,6 +16,16 @@ STATUSES = ["planned", "completed", "cancelled"]
 
 COLLECTIONS = {"1": "cleanupEvents", "2": "volunteers"}
 
+REFERENCES = {
+    "cleanupEvents": ("volunteers", "eventsAttended"),
+    "volunteers": ("cleanupEvents", "volunteers"),
+}
+
+SEARCH_FIELDS = {
+    "cleanupEvents": ["name", "zone", "status", "organiser.name", "wasteCollected.type"],
+    "volunteers": ["name", "email", "address.city", "skills", "badges"],
+}
+
 ACTION_LABELS = {
     "1": "Display all documents",
     "2": "Add a new document",
@@ -55,12 +65,17 @@ def print_document(document):
         print(f"{field:<16}{format_value(value)}")
 
 
-def display_all(collection):
+def print_documents(documents):
     count = 0
-    for document in collection.find():
+    for document in documents:
         print_document(document)
         count += 1
     print(SEPARATOR)
+    return count
+
+
+def display_all(collection):
+    count = print_documents(collection.find())
     print(f"{count} document(s) in {collection.name}.")
 
 
@@ -151,76 +166,117 @@ def current_timestamp():
     return Timestamp(datetime.now(timezone.utc), 1)
 
 
-def build_cleanup_event(database):
+def ask_location():
     return {
-        "name": ask_text("Name"),
-        "date": ask_date("Date"),
-        "zone": ask_text("Zone"),
-        "location": {
-            "type": "Point",
-            "coordinates": [
-                ask_number("Longitude", -180, 180),
-                ask_number("Latitude", -90, 90),
-            ],
-        },
-        "organiser": {
-            "name": ask_text("Organiser name"),
-            "email": ask_email("Organiser email"),
-            "phone": ask_text("Organiser phone"),
-        },
-        "volunteers": ask_references("Volunteer ids", database["volunteers"]),
-        "wasteCollected": ask_waste_collected(),
-        "durationHours": ask_number("Duration in hours", minimum=0),
-        "sponsored": ask_yes_no("Sponsored"),
-        "status": ask_choice("Status", STATUSES),
-        "lastUpdated": current_timestamp(),
+        "type": "Point",
+        "coordinates": [
+            ask_number("Longitude", -180, 180),
+            ask_number("Latitude", -90, 90),
+        ],
     }
 
 
-def build_volunteer(database):
+def ask_organiser():
     return {
-        "name": ask_text("Full name"),
-        "email": ask_email("Email"),
-        "address": {
-            "street": ask_text("Street"),
-            "city": ask_text("City"),
-            "eircode": ask_text("Eircode"),
-        },
-        "skills": ask_list("Skills"),
-        "hoursLogged": ask_number("Hours logged", minimum=0),
-        "badges": ask_list("Badges"),
-        "hasEquipment": ask_yes_no("Has own equipment"),
-        "joinedAt": ask_date("Joined on"),
-        "eventsAttended": ask_references("Attended event ids", database["cleanupEvents"]),
-        "lastUpdated": current_timestamp(),
+        "name": ask_text("Organiser name"),
+        "email": ask_email("Organiser email"),
+        "phone": ask_text("Organiser phone"),
     }
 
 
-BUILDERS = {"cleanupEvents": build_cleanup_event, "volunteers": build_volunteer}
+def ask_address():
+    return {
+        "street": ask_text("Street"),
+        "city": ask_text("City"),
+        "eircode": ask_text("Eircode"),
+    }
+
+
+FIELD_INPUTS = {
+    "cleanupEvents": {
+        "name": lambda database: ask_text("Name"),
+        "date": lambda database: ask_date("Date"),
+        "zone": lambda database: ask_text("Zone"),
+        "location": lambda database: ask_location(),
+        "organiser": lambda database: ask_organiser(),
+        "volunteers": lambda database: ask_references("Volunteer ids", database["volunteers"]),
+        "wasteCollected": lambda database: ask_waste_collected(),
+        "durationHours": lambda database: ask_number("Duration in hours", minimum=0),
+        "sponsored": lambda database: ask_yes_no("Sponsored"),
+        "status": lambda database: ask_choice("Status", STATUSES),
+    },
+    "volunteers": {
+        "name": lambda database: ask_text("Full name"),
+        "email": lambda database: ask_email("Email"),
+        "address": lambda database: ask_address(),
+        "skills": lambda database: ask_list("Skills"),
+        "hoursLogged": lambda database: ask_number("Hours logged", minimum=0),
+        "badges": lambda database: ask_list("Badges"),
+        "hasEquipment": lambda database: ask_yes_no("Has own equipment"),
+        "joinedAt": lambda database: ask_date("Joined on"),
+        "eventsAttended": lambda database: ask_references("Attended event ids", database["cleanupEvents"]),
+    },
+}
 
 
 def add_document(collection):
-    document = BUILDERS[collection.name](collection.database)
-    try:
-        result = collection.insert_one(document)
-    except DuplicateKeyError:
-        print("A volunteer with this email already exists.")
-    except WriteError as error:
-        print(f"The document was rejected: {error.details.get('errmsg', error)}")
-    else:
-        print(f"Document added with id {result.inserted_id}.")
+    inputs = FIELD_INPUTS[collection.name]
+    document = {field: ask_value(collection.database) for field, ask_value in inputs.items()}
+    document["lastUpdated"] = current_timestamp()
+    result = collection.insert_one(document)
+    print(f"Document added with id {result.inserted_id}.")
+
+
+def find_by_id(collection):
+    value = ask_text("Document id")
+    if not ObjectId.is_valid(value):
+        print("An id must be a 24 character hexadecimal string.")
+        return None
+    document = collection.find_one({"_id": ObjectId(value)})
+    if document is None:
+        print(f"No document with this id in {collection.name}.")
+    return document
 
 
 def update_document(collection):
-    print("Update is not available yet.")
+    document = find_by_id(collection)
+    if document is None:
+        return
+    print_document(document)
+    inputs = FIELD_INPUTS[collection.name]
+    fields = {str(number): field for number, field in enumerate(inputs, start=1)}
+    field = fields[ask_option("Choose the field to update", fields)]
+    value = inputs[field](collection.database)
+    collection.update_one(
+        {"_id": document["_id"]},
+        {"$set": {field: value, "lastUpdated": current_timestamp()}},
+    )
+    print(f"Field {field} updated.")
 
 
 def delete_document(collection):
-    print("Delete is not available yet.")
+    document = find_by_id(collection)
+    if document is None:
+        return
+    print_document(document)
+    if not ask_yes_no("Delete this document"):
+        print("Nothing was deleted.")
+        return
+    collection.delete_one({"_id": document["_id"]})
+    linked_collection, field = REFERENCES[collection.name]
+    collection.database[linked_collection].update_many(
+        {field: document["_id"]},
+        {"$pull": {field: document["_id"]}, "$set": {"lastUpdated": current_timestamp()}},
+    )
+    print("Document deleted.")
 
 
 def search_documents(collection):
-    print("Search is not available yet.")
+    keyword = ask_text("Keyword")
+    pattern = {"$regex": re.escape(keyword), "$options": "i"}
+    query = {"$or": [{field: pattern} for field in SEARCH_FIELDS[collection.name]]}
+    count = print_documents(collection.find(query))
+    print(f"{count} document(s) matching '{keyword}' in {collection.name}.")
 
 
 ACTIONS = {
@@ -247,6 +303,10 @@ def main():
             break
         try:
             ACTIONS[action](collection)
+        except DuplicateKeyError:
+            print("A volunteer with this email already exists.")
+        except WriteError as error:
+            print(f"The database rejected the change: {error.details.get('errmsg', error)}")
         except PyMongoError as error:
             print(f"Database error: {error}")
     client.close()
