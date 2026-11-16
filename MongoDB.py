@@ -227,10 +227,6 @@ def add_document(collection):
     print(f"Document added with id {result.inserted_id}.")
 
 
-def update_document(collection):
-    print("Update is not available yet.")
-
-
 def find_by_id(collection):
     value = ask_text("Document id")
     if not ObjectId.is_valid(value):
@@ -240,6 +236,22 @@ def find_by_id(collection):
     if document is None:
         print(f"No document with this id in {collection.name}.")
     return document
+
+
+def update_document(collection):
+    document = find_by_id(collection)
+    if document is None:
+        return
+    print_document(document)
+    inputs = FIELD_INPUTS[collection.name]
+    fields = {str(number): field for number, field in enumerate(inputs, start=1)}
+    field = fields[ask_option("Choose the field to update", fields)]
+    value = inputs[field](collection.database)
+    collection.update_one(
+        {"_id": document["_id"]},
+        {"$set": {field: value, "lastUpdated": current_timestamp()}},
+    )
+    print(f"Field {field} updated.")
 
 
 def delete_document(collection):
