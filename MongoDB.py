@@ -16,6 +16,11 @@ STATUSES = ["planned", "completed", "cancelled"]
 
 COLLECTIONS = {"1": "cleanupEvents", "2": "volunteers"}
 
+REFERENCES = {
+    "cleanupEvents": ("volunteers", "eventsAttended"),
+    "volunteers": ("cleanupEvents", "volunteers"),
+}
+
 SEARCH_FIELDS = {
     "cleanupEvents": ["name", "zone", "status", "organiser.name", "wasteCollected.type"],
     "volunteers": ["name", "email", "address.city", "skills", "badges"],
@@ -225,8 +230,32 @@ def update_document(collection):
     print("Update is not available yet.")
 
 
+def find_by_id(collection):
+    value = ask_text("Document id")
+    if not ObjectId.is_valid(value):
+        print("An id must be a 24 character hexadecimal string.")
+        return None
+    document = collection.find_one({"_id": ObjectId(value)})
+    if document is None:
+        print(f"No document with this id in {collection.name}.")
+    return document
+
+
 def delete_document(collection):
-    print("Delete is not available yet.")
+    document = find_by_id(collection)
+    if document is None:
+        return
+    print_document(document)
+    if not ask_yes_no("Delete this document"):
+        print("Nothing was deleted.")
+        return
+    collection.delete_one({"_id": document["_id"]})
+    linked_collection, field = REFERENCES[collection.name]
+    collection.database[linked_collection].update_many(
+        {field: document["_id"]},
+        {"$pull": {field: document["_id"]}, "$set": {"lastUpdated": current_timestamp()}},
+    )
+    print("Document deleted.")
 
 
 def search_documents(collection):
