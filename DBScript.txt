@@ -502,6 +502,10 @@ db.cleanupEvents.insertMany([
 
 db = db.getSiblingDB("cleanupDB");
 
+// Remove the user and (then) the role, so the script can be re-run without trouble.
+db.dropUser("Admin");
+db.dropRole("adminRole");
+
 db.createRole({
   role: "adminRole",
   privileges: [
