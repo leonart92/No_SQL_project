@@ -1,5 +1,7 @@
 # Community Cleanup Tracker
 
+[![Tests](https://github.com/leonart92/No_SQL_project/actions/workflows/tests.yml/badge.svg)](https://github.com/leonart92/No_SQL_project/actions/workflows/tests.yml)
+
 MongoDB group assignment (CA2) by Group 5: Edouard Dupuch, Leonart Heurteux, Brice Laurent and Mael Mangata.
 
 Dublin City Council wants to organise community cleanups. This project stores the cleanup events and the volunteers in MongoDB, answers reporting questions with queries, and gives council staff a small console application to manage the data.
@@ -12,7 +14,9 @@ Dublin City Council wants to organise community cleanups. This project stores th
 | `DBScript.txt` | MongoDB script: collections, validation rules, indexes, sample data, admin role and user, and the 15 queries |
 | `MongoDB.py` | Python console application built with PyMongo |
 | `requirements.txt` | Python dependency (`pymongo`) |
-| `tests/` | Shell scripts the team used to test the database locally |
+| `requirements-dev.txt` | Python dependencies for the tests (`pymongo`, `pytest`) |
+| `tests/` | Automated tests (`pytest`) and the shell scripts the team used to test the database locally |
+| `.github/workflows/tests.yml` | GitHub Actions workflow that runs the tests on every push |
 
 ## How the project is built
 
@@ -126,7 +130,7 @@ mongosh --file DBScript.txt
 
 ## Running the queries
 
-The 15 queries are at the end of `DBScript.txt`. Running the file with `--file` executes them without printing their results, so to see the results open a shell and paste them one at a time:
+The 15 queries are at the end of `DBScript.txt`. Running the file with `--file` executes them without printing their results, so to see the results open a shell and paste them one at a time (the automated tests below also run every query and check its result):
 
 ```bash
 mongosh cleanupDB
@@ -161,3 +165,27 @@ $env:MONGO_URI="mongodb://Admin:pa33word@localhost:27017/?authSource=cleanupDB"
 ```bash
 MONGO_URI="mongodb://Admin:pa33word@localhost:27017/?authSource=cleanupDB" .venv/bin/python MongoDB.py
 ```
+
+## Tests
+
+The `tests/` folder holds an automated test suite (46 tests) written with `pytest`. Each test starts from a fresh database built by `DBScript.txt`.
+
+| File | What it checks |
+|---|---|
+| `test_script.py` | The script runs on a brand new server and can be run twice; the `$jsonSchema` rules refuse wrong documents; the indexes exist; the sample data is consistent; `adminRole` and the `Admin` user have the right rights |
+| `test_queries.py` | Each of the 15 queries, run exactly as written in `DBScript.txt`, returns the answer worked out in Python from the data |
+
+### Run the tests
+
+With the container from step 2 running:
+
+```bash
+.venv/bin/pip install -r requirements-dev.txt
+.venv/bin/pytest tests/ -v
+```
+
+The tests reset `cleanupDB` to the sample data, so run them against a test server, not one holding real data. Set `MONGO_URI` to use another server.
+
+### Continuous integration
+
+GitHub Actions runs the same tests on a brand new MongoDB 7 server after every push and on every pull request (`.github/workflows/tests.yml`). The badge at the top of this page shows the result of the last run, and each run is listed in the Actions tab of the repository.
