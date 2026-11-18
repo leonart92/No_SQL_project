@@ -36,39 +36,75 @@ Small data that belongs to a single document is embedded: the organiser, the was
 
 ## Getting started from scratch
 
-You need [Git](https://git-scm.com/), [Docker Desktop](https://www.docker.com/products/docker-desktop/), the [MongoDB Shell](https://www.mongodb.com/try/download/shell) (`mongosh`) and [Python 3](https://www.python.org/downloads/).
+You need three things: a MongoDB server, the MongoDB Shell (`mongosh`) and Python 3. Docker is not needed. Every command below is run from the project folder, the one that contains `DBScript.txt` and `MongoDB.py`.
 
-### 1. Get the code
+### 1. Install MongoDB and mongosh
+
+**Windows**
+
+1. Download and run the MongoDB Community Server installer (`.msi`) from https://www.mongodb.com/try/download/community. Choose the Complete setup and keep the option "Install MongoD as a Service" ticked, so MongoDB starts by itself.
+2. Download and run the MongoDB Shell installer (`.msi`) from https://www.mongodb.com/try/download/shell.
+3. Close and reopen your terminal so that the `mongosh` command is found.
+
+**macOS** (with [Homebrew](https://brew.sh/))
 
 ```bash
-git clone https://github.com/leonart92/No_SQL_project.git
-cd No_SQL_project
+brew tap mongodb/brew
 ```
-
-### 2. Start MongoDB
-
-Open Docker Desktop, then create the container. It listens on port 27018.
 
 ```bash
-docker run -d --name mongo-local -p 27018:27017 mongo:7
+brew install mongodb-community
 ```
+
+```bash
+brew services start mongodb-community
+```
+
+This installs `mongosh` as well. On both systems MongoDB now listens on `localhost:27017`, which is where the application looks by default.
+
+### 2. Install Python
+
+Install Python 3 from https://www.python.org/downloads/. On Windows, tick "Add python.exe to PATH" in the installer.
 
 ### 3. Create and fill the database
 
+The same command works on Windows and macOS:
+
 ```bash
-mongosh "mongodb://localhost:27018" --file DBScript.txt
+mongosh --file DBScript.txt
 ```
 
 ### 4. Install the Python dependency
 
+**Windows** (PowerShell or Command Prompt)
+
 ```bash
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
+py -m venv .venv
 ```
 
-On Windows, use `.venv\Scripts\pip` and `.venv\Scripts\python` instead.
+```bash
+.venv\Scripts\pip install pymongo
+```
+
+**macOS**
+
+```bash
+python3 -m venv .venv
+```
+
+```bash
+.venv/bin/pip install pymongo
+```
 
 ### 5. Run the application
+
+**Windows**
+
+```bash
+.venv\Scripts\python MongoDB.py
+```
+
+**macOS**
 
 ```bash
 .venv/bin/python MongoDB.py
@@ -76,17 +112,16 @@ On Windows, use `.venv\Scripts\pip` and `.venv\Scripts\python` instead.
 
 ## Starting again later
 
-The container keeps its data. Next time, only two commands are needed:
+MongoDB keeps running in the background and keeps its data, so only step 5 is needed.
+
+To go back to the original 20 documents, remove the admin user and role, then run the script again:
 
 ```bash
-docker start mongo-local
-.venv/bin/python MongoDB.py
+mongosh cleanupDB --eval "db.dropAllUsers(); db.dropAllRoles()"
 ```
 
-To go back to the original 20 documents, remove the container and repeat steps 2 and 3:
-
 ```bash
-docker rm -f mongo-local
+mongosh --file DBScript.txt
 ```
 
 ## Running the queries
@@ -94,13 +129,35 @@ docker rm -f mongo-local
 The 15 queries are at the end of `DBScript.txt`. Running the file with `--file` executes them without printing their results, so to see the results open a shell and paste them one at a time:
 
 ```bash
-mongosh "mongodb://localhost:27018/cleanupDB"
+mongosh cleanupDB
 ```
+
+## Using Docker instead
+
+If Docker is installed, it can replace step 1. Start a MongoDB container, then follow steps 2 to 5 as written:
+
+```bash
+docker run -d --name mongo-local -p 27017:27017 mongo:7
+```
+
+Next time, start it again with `docker start mongo-local`.
 
 ## Connection settings
 
-The application connects to `mongodb://localhost:27018` by default. Set `MONGO_URI` to use another server, or to connect as the `Admin` user created by the script:
+The application connects to `mongodb://localhost:27017` by default. Set the `MONGO_URI` variable to use another server, for example to connect as the `Admin` user created by the script.
+
+**Windows** (PowerShell)
 
 ```bash
-MONGO_URI="mongodb://Admin:pa33word@localhost:27018/?authSource=cleanupDB" .venv/bin/python MongoDB.py
+$env:MONGO_URI="mongodb://Admin:pa33word@localhost:27017/?authSource=cleanupDB"
+```
+
+```bash
+.venv\Scripts\python MongoDB.py
+```
+
+**macOS**
+
+```bash
+MONGO_URI="mongodb://Admin:pa33word@localhost:27017/?authSource=cleanupDB" .venv/bin/python MongoDB.py
 ```

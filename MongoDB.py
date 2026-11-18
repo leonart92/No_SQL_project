@@ -7,7 +7,7 @@ from bson.timestamp import Timestamp
 from pymongo import MongoClient
 from pymongo.errors import DuplicateKeyError, PyMongoError, WriteError
 
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27018")
+MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
 DB_NAME = "cleanupDB"
 SEPARATOR = "-" * 70
 DATE_FORMATS = ("%Y-%m-%d %H:%M", "%Y-%m-%d")
