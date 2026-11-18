@@ -497,11 +497,6 @@ db.cleanupEvents.insertMany([
   }
 ]);
 
-// The next part switches to the project db.
-// Then it creates a role with CRUD privileges on the 2 collections, which the Admin user will get next.
-
-db = db.getSiblingDB("cleanupDB");
-
 // Remove the user and (then) the role, so the script can be re-run without trouble.
 // On a new database they do not exist yet, and dropUser() would stop the script.
 if (db.getUser("Admin")) {
@@ -511,6 +506,7 @@ if (db.getRole("adminRole")) {
   db.dropRole("adminRole");
 }
 
+// This part creates a role with CRUD privileges on the 2 collections, which the Admin user will get next.
 db.createRole({
   role: "adminRole",
   privileges: [
